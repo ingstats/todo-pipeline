@@ -1,0 +1,47 @@
+name: fetch-todos
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'     # 5분마다 (UTC)  :contentReference[oaicite:0]{index=0}
+  push:                       # 모든 브랜치 커밋
+    branches: [ main ]
+  workflow_dispatch:          # 수동 실행
+
+jobs:
+  fetch_and_save:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) 코드 체크아웃
+      - uses: actions/checkout@v4
+
+      # 2) 분+1에 해당하는 API 호출
+      - name: Download todo JSON
+        id: fetch
+        run: |
+          MIN=$(date -u +"%M")
+          IDX=$(( (10#$MIN + 1) % 60 ))
+          [[ $IDX -eq 0 ]] && IDX=60
+          URL="https://jsonplaceholder.typicode.com/todos/${IDX}"
+          echo "Fetching $URL"
+          curl -s "$URL" > test.json
+
+      # 3) cron 실행일 때만 커밋
+      - name: Commit & push (cron only)
+        if: github.event_name == 'schedule'
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain test.json)" ]; then
+            git add test.json
+            git commit -m "chore: auto‑update test.json (cron)"
+            git push
+          fi
+
+      # 4) 수동·push 실행 시 결과를 아티팩트로 보존
+      - name: Upload artifact
+        if: github.event_name != 'schedule'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-json
+          path: test.json

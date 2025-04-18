@@ -1,0 +1,11 @@
+cat <<'EOF' > .gitignore
+# Python byte‑code
+__pycache__/
+*.pyc
+
+# IDE 설정
+.vscode/
+
+# Mac 시스템 파일
+.DS_Store
+EOF
